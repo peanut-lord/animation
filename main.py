@@ -1,37 +1,29 @@
-import pygame
 import itertools
-from collections import namedtuple
-sprites = namedtuple('sprites', ['left', 'right', 'up', 'down'])
+
+import pygame
+
+SPRITE_SIZE = 90
+DISTANCE_PER_FRAME = 80
 
 
-# What do I need to know?
-# Which direction (to + or - x and y)
-# current coords (tuple with x, y)
-# which sprite to draw and cycle through them
-# if we know the direction, *but* no key press: standing still
-def slice_sprites():
-    left, right, up, down = list(), list(), list(), list()
+def load_sprites(location):
+    sprite_sheet = pygame.image.load(location)
 
-    spritesheet = pygame.image.load('spritesheet.png')
+    sprites = []
+    for i in range(4):
+        for j in range(5):
+            # left top width height
+            coords = (j * SPRITE_SIZE, i * SPRITE_SIZE)
+            size = (SPRITE_SIZE, SPRITE_SIZE)
 
-    # We now our movements are five sprites long
-    for i in range(5):
-        sprite_size = pygame.Rect(i * 90, 0, 90, 90)
-        sprite = pygame.Surface(sprite_size.size).convert()
-        sprite.set_colorkey((0, 0, 0), pygame.RLEACCEL)
-        sprite.blit(spritesheet, (0, 0), sprite_size)
+            sprite_rect = pygame.Rect(coords, size)
+            sprite = pygame.Surface(sprite_rect.size).convert()
+            sprite.set_colorkey((0, 0, 0), pygame.RLEACCEL)
+            sprite.blit(sprite_sheet, (0, 0), sprite_rect)
 
-        left.append(sprite)
+            sprites.append(sprite)
 
-    for i in range(5):
-        sprite_size = pygame.Rect(i * 90, 90, 90, 90)
-        sprite = pygame.Surface(sprite_size.size).convert()
-        sprite.set_colorkey((0, 0, 0), pygame.RLEACCEL)
-        sprite.blit(spritesheet, (0, 0), sprite_size)
-
-        right.append(sprite)
-
-    return sprites(left, right, up, down)
+    return sprites
 
 
 def main():
@@ -44,44 +36,81 @@ def main():
     background = background.convert()
     background.fill((250, 250, 250))
 
-    left, right, _, _ = slice_sprites()
+    # left, right, up, down
+    sprites = load_sprites("spritesheet.png")
 
     def move_left():
-        yield from itertools.cycle([1, 2, 3, 4])
-
-    def move_right():
         yield from itertools.cycle([4, 3, 2, 1])
 
+    def move_right():
+        yield from itertools.cycle([0, 1, 2, 3])
+
+    def move_up():
+        yield from itertools.cycle([1, 2, 3, 4])
+
+    def move_down():
+        yield from itertools.cycle([1, 2, 3, 4])
+
     clock = pygame.time.Clock()
-    x = 710
-    direction = move_left()
+    player = (0, 0)
+
+    # Filter event queue by this keys
+    allowed_keys = [pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN]
+
+    direction = move_right()
+    sprite_key = 2
     while True:
-        # One frame per second
+        # Our frames per second
         delta = clock.tick(8)
         print('time delta: %d' % delta)
 
-        # Check only quit for now
+        # the player coords
+        x, y = player
+
+        # The keys the ur
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 return
 
-            if event.type == pygame.K_RIGHT:
-                direction = move_right()
+            # TODO drain the queue properly per frame (last one counts),
+            #  so we don't block after this frame
+            if event.type == pygame.KEYUP or event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    if direction.__name__ is not move_left.__name__:
+                        direction = move_left()
 
-            if event.type == pygame.K_LEFT:
-                direction = move_left()
+                    sprite_key = next(direction)
+                    x -= DISTANCE_PER_FRAME * (delta / 1000)
 
-        x -= 100 * (delta / 1000)
+                if event.key == pygame.K_RIGHT:
+                    if direction.__name__ is not move_right.__name__:
+                        direction = move_right()
+
+                    # First 5 are moving left and standing still
+                    sprite_key = 5 + next(direction)
+                    x += DISTANCE_PER_FRAME * (delta / 1000)
+
+                if event.key == pygame.K_UP:
+                    if direction.__name__ is not move_up.__name__:
+                        direction = move_up()
+
+                    sprite_key = 10 + next(direction)
+                    y -= DISTANCE_PER_FRAME * (delta / 1000)
+
+                if event.key == pygame.K_DOWN:
+                    if direction.__name__ is not move_down.__name__:
+                        direction = move_down()
+
+                    sprite_key = 15 + next(direction)
+                    y += DISTANCE_PER_FRAME * (delta / 1000)
 
         screen.blit(background, (0, 0))
-        # I only care about the image to draw,
-        screen.blit(left[next(direction)], (x, 0))
+        screen.blit(sprites[sprite_key], (x, y))
         pygame.display.flip()
 
-    print('Quiting ')
-    pygame.quit()
+        player = x, y
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
