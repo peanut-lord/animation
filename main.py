@@ -53,10 +53,6 @@ def main():
 
     clock = pygame.time.Clock()
     player = (0, 0)
-
-    # Filter event queue by this keys
-    allowed_keys = [pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN]
-
     direction = move_right()
     sprite_key = 2
     while True:
